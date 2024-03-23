@@ -6,36 +6,44 @@ import java.io.OutputStream;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import org.json.JSONException;
 
 public class CrptApi {
 	
-	private int requestLimit;
-	private int currentRequests;
+	ExecutorService executor;
 	
 	public CrptApi(TimeUnit timeUnit, int requestLimit) {
-		this.requestLimit = requestLimit;
-		currentRequests = 0;
+		executor = new ThreadPoolExecutor(1, requestLimit, 0L, timeUnit, new LinkedBlockingQueue<Runnable>());
 	}
 	
 	public void createDoc(Object doc, String signature) throws InterruptedException, IOException {
 		
-		currentRequests++;
-		HttpURLConnection con = (HttpURLConnection) new URL("http://127.0.0.1:5000/post_json").openConnection();
-		con.setRequestProperty("Content-Type", "application/json");
-		con.setDoOutput(true);
+		executor.submit(new Runnable() {
+			@Override
+			public void run() {
+				HttpURLConnection con;
+				try {
+					con = (HttpURLConnection) new URL("https://ismp.crpt.ru/api/v3/lk/documents/create").openConnection();
+					con.setRequestProperty("Content-Type", "application/json");
+					con.setDoOutput(true);
+					
+//					С Вашего позволения я не буду писать сюда JSON-строку, а просто сохраню её в файл и буду считывать
+					OutputStream os = con.getOutputStream();
+					String text = readString(new FileReader("test.json"));
+					os.write(text.getBytes());
+					os.flush();
+					os.close();
+					
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				
+			}
+		});
 		
-		OutputStream os = con.getOutputStream();
-		String text = readString(new FileReader("test.json"));
-		os.write(text.getBytes());
-		os.flush();
-		os.close();
-		
-		System.out.println(con.getResponseCode());
-		
-		currentRequests--;
 		
 	}
 	
@@ -47,12 +55,4 @@ public class CrptApi {
 	    }
 	    return sb.toString();
 	}
-}
-
-class MainClass {
-
-	public static void main(String[] args) throws JSONException, IOException {
-		
-	}
-
 }
